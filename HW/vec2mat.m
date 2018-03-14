@@ -1,4 +1,4 @@
-function V = vec2screw(v);
+function V = vec2mat(v);
     %takes vector of the form [w (angular velocity), v (linear velocity)]
     %where w and v are 3-dimensional vectors outputs a matrix
     %that is a concatination of a skew symmetric matrix and linear velocity
