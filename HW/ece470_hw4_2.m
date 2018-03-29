@@ -109,7 +109,7 @@ while (done == 0)
     T_curr = expm(vec2mat(s1)*theta(1))*expm(vec2mat(s2)*theta(2))*expm(vec2mat(s3)*theta(3))*expm(vec2mat(s4)*theta(4))*expm(vec2mat(s5)*theta(5))*expm(vec2mat(s6)*theta(6))*expm(vec2mat(s7)*theta(7))*M;
 
     % calculate the change in pose for one timestep
-    dT = T_1in0*inv(T_curr);
+    dT = T_1in0*inv(T_curr)
     
     % calculate the spatial twist to achieve this change in pose
     V = mat2twist(logm(dT));
