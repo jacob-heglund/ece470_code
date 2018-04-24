@@ -1,5 +1,5 @@
 %% HW5.2.1. Detect collision at a given configuration (2 joints)
-
+%{
 clear all;
 clc;
 
@@ -88,7 +88,7 @@ for i = 1:numConfigs;
     end
 end
 coll
-
+%}
 %% HW5.2.2. Detect collision at several different configurations (2 joints)
 %{
 clear all;
@@ -292,109 +292,279 @@ s(indices)
 
 %}
 %% HW5.2.4. Detect collision along several straight-line paths (2 joints)
-
+%{
 clear all;
 clc;
-S = [1.00 0.00; 0.00 0.00; 0.00 0.00; 0.00 0.00; 0.00 1.00; 0.00 0.00];
-M = [0.00 -1.00 0.00 2.00; -1.00 0.00 0.00 0.00; 0.00 0.00 -1.00 -4.00; 0.00 0.00 0.00 1.00];
-p_robot = [0.00 2.00 2.00 2.00; 0.00 0.00 0.00 0.00; 0.00 0.00 -2.00 -4.00];
+% characterize the robot
+S = [0.00 0.00; -1.00 0.00; 0.00 0.00; 0.00 0.00; 0.00 0.00; 0.00 -1.00];
+M = [0.00 1.00 0.00 -2.00; 1.00 0.00 0.00 0.00; 0.00 0.00 -1.00 0.00; 0.00 0.00 0.00 1.00];
+p_robot = [0.00 0.00 -2.00 -2.00; 0.00 -2.00 -2.00 0.00; 0.00 0.00 0.00 0.00];
 r_robot = [0.90 0.90 0.90 0.90];
-p_obstacle = [-4.85 -3.15 -2.60 -0.45 2.33; -4.27 -4.71 -1.04 -3.04 -4.86; 4.66 -1.34 -0.26 2.12 -2.09];
-r_obstacle = [4.07 1.30 0.93 1.33 0.69];
-theta_start = [-0.94 -2.48 2.27 0.67 0.01 1.43 2.56 -3.00; -0.03 2.80 0.34 -2.28 -0.50 -0.14 -1.72 0.83];
-theta_goal = [2.46 3.00 3.09 2.38 1.29 2.57 -0.58 -3.06; -0.75 0.03 -1.44 1.75 -1.40 -1.11 -0.63 -1.39];
+p_obstacle = [-1.10 -0.46 -4.88 -3.77 -1.07 -4.98 -0.94 1.07 -4.45 -4.58 -2.92; -4.73 -2.49 -1.75 -0.69 -4.16 -2.22 3.02 3.91 0.40 4.51 1.05; -3.45 3.35 -1.13 4.61 -4.19 -2.17 -2.60 1.57 2.36 3.39 -3.40];
+r_obstacle = [1.03 0.54 2.07 0.82 2.49 1.31 1.59 1.74 1.22 3.44 2.12];
+theta_start = [2.49 -1.64 -1.58 0.53 0.73 -0.37 -0.72 -2.93 -2.67; -1.94 0.31 1.54 -1.79 2.36 -2.25 -2.52 -3.00 0.23];
+theta_goal = [-2.58 2.85 2.46 -1.36 0.02 -2.55 0.70 -0.31 -1.97; -1.98 0.60 1.53 -0.71 -2.04 0.92 -0.81 -2.37 1.04];
 
-%resolution of our search for collisions along a straight-line path
-n = 100;
-s = linspace(0,1,n);
 
-theta = zeros(2,n);
-for i = 1:n
-    theta(:,i) = (1-s(i))*theta_a + s(i)*theta_b;
-end
+sColl = zeros(1, size(theta_start,2));
 
-% the total number of spheres on the robot
-numSpheresRobot = size(p_robot, 2);
+for z = 1:size(theta_start,2);
+    theta_a = theta_start(:,z);
+    theta_b = theta_goal(:,z);
+    %resolution of our search for collisions along a straight-line path
+    n = 100;
+    s = linspace(0,1,n);
 
-numObstacles = size(p_obstacle, 2);
-
-numConfigs = size(theta, 2);
-
-% augment the positions of the robot with a row of ones
-aug = ones(1, numSpheresRobot);
-pAugInit = [p_robot; aug];
-
-coll = zeros(1, numConfigs);
-
-for i = 1:numConfigs;
-    thetaLocal = theta(:,i);
-    % the first two spheres aren't moved by any joints
-    pAugFinal(:,1) = pAugInit(:,1);
-    pAugFinal(:,2) = pAugInit(:,2);
-
-    T = 1;
-    for j = 1:size(S, 2)
-        % move the center of each sphere by only the joints that affect it
-        
-        trans = expm(skew4(S(:,j))*thetaLocal(j));
-        T = T*trans;
-        pAugFinal(:, j+2) = T * pAugInit(:, j+2);
+    theta = zeros(2,n);
+    for i = 1:n
+        theta(:,i) = (1-s(i))*theta_a + s(i)*theta_b;
     end
 
-    % now we have the centers of the spheres at the position described by theta
-    pFinal = pAugFinal(1:3, :);
-    
-    % shows if each sphere is in collision for a particular configuration
-    selfColl = zeros(numSpheresRobot, numSpheresRobot);
-    obsColl = zeros(numObstacles, numSpheresRobot);
+    % the total number of spheres on the robot
+    numSpheresRobot = size(p_robot, 2);
 
-    for j = 1:numSpheresRobot
-        % check if a sphere is colliding with any of the others on the robot, except itself
-        for k = 1:numSpheresRobot
-            if (j == k)
-                continue
-            else     
-                p1 = pFinal(:,j);
-                p2 = pFinal(:,k); 
-                
-                x1 = norm(p1-p2);
-                x2 = r_robot(j) + r_robot(k);
-                if (x1 <= x2)
-                    selfColl(j,k) = 1;
+    numObstacles = size(p_obstacle, 2);
+
+    numConfigs = size(theta, 2);
+
+    % augment the positions of the robot with a row of ones
+    aug = ones(1, numSpheresRobot);
+    pAugInit = [p_robot; aug];
+
+    coll = zeros(1, numConfigs);
+
+    for i = 1:numConfigs;
+        thetaLocal = theta(:,i);
+        % the first two spheres aren't moved by any joints
+        pAugFinal(:,1) = pAugInit(:,1);
+        pAugFinal(:,2) = pAugInit(:,2);
+
+        T = 1;
+        for j = 1:size(S, 2)
+            % move the center of each sphere by only the joints that affect it
+
+            trans = expm(skew4(S(:,j))*thetaLocal(j));
+            T = T*trans;
+            pAugFinal(:, j+2) = T * pAugInit(:, j+2);
+        end
+
+        % now we have the centers of the spheres at the position described by theta
+        pFinal = pAugFinal(1:3, :);
+
+        % shows if each sphere is in collision for a particular configuration
+        selfColl = zeros(numSpheresRobot, numSpheresRobot);
+        obsColl = zeros(numObstacles, numSpheresRobot);
+
+        for j = 1:numSpheresRobot
+            % check if a sphere is colliding with any of the others on the robot, except itself
+            for k = 1:numSpheresRobot
+                if (j == k)
+                    continue
+                else     
+                    p1 = pFinal(:,j);
+                    p2 = pFinal(:,k); 
+
+                    x1 = norm(p1-p2);
+                    x2 = r_robot(j) + r_robot(k);
+                    if (x1 <= x2)
+                        selfColl(j,k) = 1;
+                    else
+                        continue
+                    end
+                end
+            end
+            % check if a sphere is colliding with an obstacle
+            for m = 1:numObstacles
+                x3 = norm(pFinal(:,j) - p_obstacle(:,m));
+                x4 = r_robot(j) + r_obstacle(m);        
+                if (x3 <= x4)
+                    obsColl(j,m) = 1;
                 else
                     continue
                 end
             end
-        end
-        % check if a sphere is colliding with an obstacle
-        for m = 1:numObstacles
-            x3 = norm(pFinal(:,j) - p_obstacle(:,m));
-            x4 = r_robot(j) + r_obstacle(m);        
-            if (x3 <= x4)
-                obsColl(j,m) = 1;
-            else
-                continue
-            end
-        end
-    end    
-    
-    % check if any of the rows in selfColl and obsColl show collisions
-    selfIntermediate = any(selfColl);
-    obsIntermediate = any(obsColl);
+        end    
 
-    % get if there were any collisions in this configuration
-    selfBool = any(selfIntermediate);
-    obsBool = any(obsIntermediate);
-    
-    % if there were either self or obstacle collisions, make a note of that
-    if selfBool | obsBool
-        coll(i) = 1;
+        % check if any of the rows in selfColl and obsColl show collisions
+        selfIntermediate = any(selfColl);
+        obsIntermediate = any(obsColl);
+
+        % get if there were any collisions in this configuration
+        selfBool = any(selfIntermediate);
+        obsBool = any(obsIntermediate);
+
+        % if there were either self or obstacle collisions, make a note of that
+        if selfBool | obsBool
+            coll(i) = 1;
+        end
+    end
+
+    %find the values of s that cause a collision
+    indices = find(coll == 1);
+    answer = s(indices);
+    if (size(answer,2) ~= 0)
+        sColl(z) = answer(1);    
     end
 end
 
-%find the values of s that cause a collision
-indices = find(coll == 1);
-s(indices)
+
+mat2str(sColl)
+%}
+%% HW5.2.8. Detect collision along several straight-line paths
+%{
+clear all;
+clc;
+% characterize the robot
+S = [0.00 0.00 0.00 0.00 0.00; 0.00 0.00 -1.00 0.00 1.00; 1.00 0.00 0.00 0.00 0.00; 2.00 0.00 0.00 -1.00 0.00; 0.00 0.00 0.00 0.00 0.00; 0.00 1.00 4.00 0.00 -6.00];
+M = [0.00 -1.00 0.00 -6.00; 0.00 0.00 1.00 0.00; -1.00 0.00 0.00 0.00; 0.00 0.00 0.00 1.00];
+p_robot = [0.00 0.00 -4.00 -4.00 -4.00 -6.00 -6.00; 0.00 2.00 2.00 0.00 -2.00 -2.00 0.00; 0.00 0.00 0.00 0.00 0.00 0.00 0.00];
+r_robot = [0.90 0.90 0.90 0.90 0.90 0.90 0.90];
+p_obstacle = [4.43 -2.37 3.76 3.29 4.84; -3.28 -1.02 -2.27 -1.46 -4.63; 0.34 2.14 -0.02 3.50 2.62];
+r_obstacle = [2.17 0.56 1.19 3.04 4.93];
+theta_start = [-2.78 -1.27 -0.27 -1.86 -0.39 -1.32 0.09 -1.64; -2.67 -1.35 0.83 2.86 1.40 -1.44 -0.60 2.48; -1.13 -1.35 -0.05 -2.48 1.89 -2.29 1.10 0.84; 1.69 0.23 2.36 1.51 -0.02 -0.10 1.66 2.95; 3.11 0.41 1.01 3.04 -2.33 2.82 1.94 1.26];
+theta_goal = [-2.03 -2.65 -2.29 2.91 -1.89 -2.16 -1.02 -2.03; 3.09 -2.48 -2.32 -0.94 -1.47 3.04 -0.80 0.93; 1.31 -1.53 -0.99 0.33 0.00 -0.92 0.52 0.25; 1.89 0.09 3.13 1.25 1.70 2.40 1.52 0.17; 2.31 1.72 -1.11 -0.06 0.49 1.88 -0.61 -2.49];
+
+sColl = zeros(1, size(theta_start,2));
+
+for z = 1:size(theta_start,2);
+    theta_a = theta_start(:,z);
+    theta_b = theta_goal(:,z);
+    %resolution of our search for collisions along a straight-line path
+    n = 100;
+    s = linspace(0,1,n);
+
+    theta = zeros(size(theta_start,1),n);
+    for i = 1:n
+        theta(:,i) = (1-s(i))*theta_a + s(i)*theta_b;
+    end
+
+    % the total number of spheres on the robot
+    numSpheresRobot = size(p_robot, 2);
+
+    numObstacles = size(p_obstacle, 2);
+
+    numConfigs = size(theta, 2);
+
+    % augment the positions of the robot with a row of ones
+    aug = ones(1, numSpheresRobot);
+    pAugInit = [p_robot; aug];
+
+    coll = zeros(1, numConfigs);
+
+    for i = 1:numConfigs;
+        thetaLocal = theta(:,i);
+        % the first two spheres aren't moved by any joints
+        pAugFinal(:,1) = pAugInit(:,1);
+        pAugFinal(:,2) = pAugInit(:,2);
+
+        T = 1;
+        for j = 1:size(S, 2)
+            % move the center of each sphere by only the joints that affect it
+
+            trans = expm(skew4(S(:,j))*thetaLocal(j));
+            T = T*trans;
+            pAugFinal(:, j+2) = T * pAugInit(:, j+2);
+        end
+
+        % now we have the centers of the spheres at the position described by theta
+        pFinal = pAugFinal(1:3, :);
+
+        % shows if each sphere is in collision for a particular configuration
+        selfColl = zeros(numSpheresRobot, numSpheresRobot);
+        obsColl = zeros(numObstacles, numSpheresRobot);
+
+        for j = 1:numSpheresRobot
+            % check if a sphere is colliding with any of the others on the robot, except itself
+            for k = 1:numSpheresRobot
+                if (j == k)
+                    continue
+                else     
+                    p1 = pFinal(:,j);
+                    p2 = pFinal(:,k); 
+
+                    x1 = norm(p1-p2);
+                    x2 = r_robot(j) + r_robot(k);
+                    if (x1 <= x2)
+                        selfColl(j,k) = 1;
+                    else
+                        continue
+                    end
+                end
+            end
+            % check if a sphere is colliding with an obstacle
+            for m = 1:numObstacles
+                x3 = norm(pFinal(:,j) - p_obstacle(:,m));
+                x4 = r_robot(j) + r_obstacle(m);        
+                if (x3 <= x4)
+                    obsColl(j,m) = 1;
+                else
+                    continue
+                end
+            end
+        end    
+
+        % check if any of the rows in selfColl and obsColl show collisions
+        selfIntermediate = any(selfColl);
+        obsIntermediate = any(obsColl);
+
+        % get if there were any collisions in this configuration
+        selfBool = any(selfIntermediate);
+        obsBool = any(obsIntermediate);
+
+        % if there were either self or obstacle collisions, make a note of that
+        if selfBool | obsBool
+            coll(i) = 1;
+        end
+    end
+
+    %find the values of s that cause a collision
+    indices = find(coll == 1);
+    answer = s(indices);
+    if (size(answer,2) ~= 0)
+        sColl(z) = answer(1);    
+    end
+end
+
+
+mat2str(sColl)
+
+sColl = zeros(1, size(theta_start,2));
+
+%}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
